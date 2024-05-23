@@ -38,7 +38,6 @@ func (c *Coordinator) Assignment(args *WorkerArgs, reply *WorkerReply) error {
 
 	for _, file := range c.files {
 		if !c.doneMap[file] {
-			// fmt.Printf("-Assignment: File is not done yet: %v\n", file)
 			reply.File = ""
 			return nil
 		}
@@ -110,7 +109,6 @@ func (c *Coordinator) Done() bool {
 
 	for _, file := range c.files {
 		if !c.doneMap[file] {
-			// fmt.Printf("-Done: File is not done yet: %v\n", file)
 			return false
 		}
 	} // all files are done with map phase
@@ -130,7 +128,6 @@ func (c *Coordinator) Done() bool {
 	for i := 0; i < c.nReduce; i++ {
 		iAsString := fmt.Sprintf("%d", i)
 		if !c.doneReduce[iAsString] {
-			// fmt.Printf("-Done: Reduce is not done yet: %v\n", iAsString)
 			return false
 		}
 	} // all files are done with reduce phase

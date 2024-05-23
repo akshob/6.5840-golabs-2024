@@ -50,7 +50,6 @@ func Worker(mapf func(string, string) []KeyValue,
 
 	for {
 		AskAssignment(mapf, reducef)
-		// time.Sleep(5 * time.Second)
 	}
 
 }
