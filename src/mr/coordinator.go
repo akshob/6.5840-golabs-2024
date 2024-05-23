@@ -7,11 +7,13 @@ import (
 	"net/http"
 	"net/rpc"
 	"os"
+	"sync"
 	"time"
 )
 
 
 type Coordinator struct {
+	mu sync.Mutex
 	files []string
 	nReduce int
 	assignedFilesForMap map[string]bool
@@ -25,6 +27,7 @@ type Coordinator struct {
 }
 
 func (c *Coordinator) Assignment(args *WorkerArgs, reply *WorkerReply) error {
+	c.mu.Lock()
 	nextUnassignedFileForMap := c.pickNextUnassignedFileForMap()
 	if nextUnassignedFileForMap != "" {
 		fmt.Printf("-Assigning file %v to worker %v\n", nextUnassignedFileForMap, args.WorkerId)
@@ -33,12 +36,14 @@ func (c *Coordinator) Assignment(args *WorkerArgs, reply *WorkerReply) error {
 		reply.File = nextUnassignedFileForMap
 		reply.WorkType = "map"
 		reply.NReduce = c.nReduce
+		c.mu.Unlock()
 		return nil
 	}
 
 	for _, file := range c.files {
 		if !c.doneMap[file] {
 			reply.File = ""
+			c.mu.Unlock()
 			return nil
 		}
 	}
@@ -51,21 +56,27 @@ func (c *Coordinator) Assignment(args *WorkerArgs, reply *WorkerReply) error {
 		reply.File = nextUnassignedReduce
 		reply.WorkType = "reduce"
 		reply.NReduce = c.nReduce
+		c.mu.Unlock()
 		return nil
 	}
 	reply.File = ""
+	c.mu.Unlock()
 	return nil
 }
 
 func (c *Coordinator) DoneMap(args *WorkerArgs, reply *WorkerReply) error {
+	c.mu.Lock()
 	fmt.Printf("-Worker has finished processing map %v -> %v\n", args.WorkerId, c.mapWorkers[args.WorkerId])
 	c.doneMap[c.mapWorkers[args.WorkerId]] = true
+	c.mu.Unlock()
 	return nil
 }
 
 func (c *Coordinator) DoneReduce(args *WorkerArgs, reply *WorkerReply) error {
+	c.mu.Lock()
 	fmt.Printf("-Worker has finished processing reduce %v <- %v\n", args.WorkerId, c.reduceWorkers[args.WorkerId])
 	c.doneReduce[c.reduceWorkers[args.WorkerId]] = true
+	c.mu.Unlock()
 	return nil
 }
 
@@ -95,6 +106,7 @@ func (c *Coordinator) pickNextUnassignedReduce() string {
 // if the entire job has finished.
 //
 func (c *Coordinator) Done() bool {
+	c.mu.Lock()
 	for workerID, timestamp := range c.mapWorkersTime {
 		if time.Now().Unix()-timestamp > 10 {
 			file := c.mapWorkers[workerID]
@@ -109,6 +121,7 @@ func (c *Coordinator) Done() bool {
 
 	for _, file := range c.files {
 		if !c.doneMap[file] {
+			c.mu.Unlock()
 			return false
 		}
 	} // all files are done with map phase
@@ -128,10 +141,11 @@ func (c *Coordinator) Done() bool {
 	for i := 0; i < c.nReduce; i++ {
 		iAsString := fmt.Sprintf("%d", i)
 		if !c.doneReduce[iAsString] {
+			c.mu.Unlock()
 			return false
 		}
 	} // all files are done with reduce phase
-
+	c.mu.Unlock()
 	return true
 }
 
