@@ -5,13 +5,12 @@ import (
 	"fmt"
 	"hash/fnv"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/rpc"
 	"os"
 	"path/filepath"
 	"sort"
-	"time"
+	// "time"
 
 	"github.com/rs/xid"
 )
@@ -51,7 +50,7 @@ func Worker(mapf func(string, string) []KeyValue,
 
 	for {
 		AskAssignment(mapf, reducef)
-		time.Sleep(5 * time.Second)
+		// time.Sleep(5 * time.Second)
 	}
 
 }
@@ -90,12 +89,11 @@ func DoneReduce() {
 }
 
 func doAssignment(reply WorkerReply, mapf func( string,  string) []KeyValue, reducef func( string,  []string) string) {
-	fmt.Printf("reply.File %v\n", reply.File)
-	fmt.Printf("reply.WorkType %v\n", reply.WorkType)
 	if reply.File == "" {
-		fmt.Printf("No more files to process\n")
 		return
 	}
+	fmt.Printf("--reply.File %v\n", reply.File)
+	fmt.Printf("--reply.WorkType %v\n", reply.WorkType)
 	if reply.WorkType == "map" {
 		doMapTask(reply.File, reply.NReduce, mapf)
 		DoneMap()
@@ -106,18 +104,18 @@ func doAssignment(reply WorkerReply, mapf func( string,  string) []KeyValue, red
 }
 
 func doMapTask(filename string, nReduce int, mapf func( string,  string) []KeyValue) {
-	fmt.Printf("doMapTask %v\n", filename)
+	fmt.Printf("---doMapTask %v\n", filename)
 	file, err := os.Open(filename)
 	if err != nil {
 		log.Fatalf("cannot open %v", filename)
 	}
-	content, err := ioutil.ReadAll(file)
+	content, err := io.ReadAll(file)
 	if err != nil {
 		log.Fatalf("cannot read %v", filename)
 	}
 	file.Close()
 	kva := mapf(filename, string(content))
-	fmt.Printf("Looping through key-values after map\n")
+	fmt.Printf("---Looping through key-values after map\n")
 	
 	encoders := make([]*json.Encoder, nReduce)
 	tempFiles := make([]*os.File, nReduce)
@@ -163,11 +161,11 @@ func doMapTask(filename string, nReduce int, mapf func( string,  string) []KeyVa
 			}
 		}
 	}
-	fmt.Printf("Done with map\n")
+	fmt.Printf("--Done with map\n")
 }
 
 func doReduceTask(reduceChunk string, reducef func( string,  []string) string) {
-	fmt.Printf("doReduceTask %v\n", reduceChunk)
+	fmt.Printf("--doReduceTask %v\n", reduceChunk)
 
 	intermediate := []KeyValue{}
 
@@ -178,7 +176,7 @@ func doReduceTask(reduceChunk string, reducef func( string,  []string) string) {
 
 	// Open each file and read each line using json decode
 	for _, file := range files {
-		fmt.Printf("Reading file %v\n", file)
+		fmt.Printf("---Reading file %v\n", file)
 		f, err := os.Open(file)
 		if err != nil {
 			log.Fatalf("cannot open file %v: %v", file, err)
@@ -212,7 +210,7 @@ func doReduceTask(reduceChunk string, reducef func( string,  []string) string) {
 		fmt.Fprintf(ofile, "%v %v\n", intermediate[i].Key, output)
 		i = j
 	}
-	fmt.Printf("Done with reduce for chunk %v\n", reduceChunk)
+	fmt.Printf("--Done with reduce for chunk %v\n", reduceChunk)
 }
 
 //
