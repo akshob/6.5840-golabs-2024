@@ -118,7 +118,7 @@ func spawn_clients_and_wait(t *testing.T, cfg *config, ncli int, fn func(me int,
 		ok := <-ca[cli]
 		//log.Printf("spawn_clients_and_wait: client %d is done\n", cli)
 		if ok == false {
-			t.Fatalf("failure")
+			t.Errorf("failure")
 		}
 	}
 }

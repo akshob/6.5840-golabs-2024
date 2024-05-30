@@ -2,8 +2,8 @@ package kvsrv
 
 import (
 	"crypto/rand"
-	"fmt"
 	"math/big"
+	"time"
 
 	"6.5840/labrpc"
 )
@@ -43,12 +43,23 @@ func (ck *Clerk) Get(key string) string {
 		Key: key,
 	}
 	reply := GetReply{}
-	ok := ck.server.Call("KVServer.Get", &args, &reply)
-	if !ok {
-		fmt.Println("Get failed")
-	}
 
-	return reply.Value
+	for {
+		ok := make(chan bool)
+
+		go func() {
+			ok <- ck.server.Call("KVServer.Get", &args, &reply)
+		}()
+
+		select {
+		case succeeded := <-ok:
+			if succeeded {
+				return reply.Value
+			}
+		case <-time.After(time.Second):
+			// retry the RPC call
+		}
+	}
 }
 
 // shared by Put and Append.
@@ -63,13 +74,26 @@ func (ck *Clerk) PutAppend(key string, value string, op string) string {
 	args := PutAppendArgs{
 		Key: key,
 		Value: value,
+		Id: nrand(),
 	}
 	reply := PutAppendReply{}
-	ok := ck.server.Call("KVServer." + op, &args, &reply)
-	if !ok {
-		fmt.Println(op + " failed")
+
+	for {
+		ok := make(chan bool)
+
+		go func() {
+			ok <- ck.server.Call("KVServer." + op, &args, &reply)
+		}()
+
+		select {
+		case succeeded := <-ok:
+			if succeeded {
+				return reply.Value
+			}
+		case <-time.After(time.Second):
+			// retry the RPC call
+		}
 	}
-	return reply.Value
 }
 
 func (ck *Clerk) Put(key string, value string) {
