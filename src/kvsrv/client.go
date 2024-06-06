@@ -77,7 +77,9 @@ func (ck *Clerk) PutAppend(key string, value string, op string) string {
 		Id: nrand(),
 	}
 	reply := PutAppendReply{}
+	deleteKeyReply := PutAppendReply{}
 
+	DPrintf("Client %v args: %v\n", op, args)
 	for {
 		ok := make(chan bool)
 
@@ -87,7 +89,11 @@ func (ck *Clerk) PutAppend(key string, value string, op string) string {
 
 		select {
 		case succeeded := <-ok:
+			DPrintf("Client %v succeeded: %v args: %v reply.Value: %v\n", op, succeeded, args, reply.Value)
 			if succeeded {
+				go func() {
+					ck.server.Call("KVServer.DeleteKey", &args, &deleteKeyReply)
+				}()
 				return reply.Value
 			}
 		case <-time.After(time.Second):

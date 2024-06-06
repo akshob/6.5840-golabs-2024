@@ -245,13 +245,14 @@ func GenericTest(t *testing.T, nclients int, unreliable bool, randomkeys bool) {
 				}
 				nv := "x " + strconv.Itoa(cli) + " " + strconv.Itoa(j) + " y"
 				if (rand.Int() % 1000) < 500 {
-					//log.Printf("%d: client new append %v\n", cli, nv)
+					DPrintf("%d: client new append %v\n", cli, nv)
 					l := Append(cfg, myck, key, nv, opLog, cli)
 					if !randomkeys {
 						if j > 0 {
 							o := "x " + strconv.Itoa(cli) + " " + strconv.Itoa(j-1) + " y"
 							if !inHistory(o, l) {
-								t.Fatalf("error: old %v not in return\n%v\n", o, l)
+								DPrintf("cli: %v - error: old %v not in return\n%v\n", cli, o, l)
+								t.Fatalf("cli: %v - error: old %v not in return\n%v\n", cli, o, l)
 							}
 						}
 						if inHistory(nv, l) {
@@ -296,6 +297,7 @@ func GenericTest(t *testing.T, nclients int, unreliable bool, randomkeys bool) {
 	}
 
 	res, info := porcupine.CheckOperationsVerbose(models.KvModel, opLog.Read(), linearizabilityCheckTimeout)
+	DPrintf("info: linearizability check result: %v\n", res)
 	if res == porcupine.Illegal {
 		file, err := ioutil.TempFile("", "*.html")
 		if err != nil {
