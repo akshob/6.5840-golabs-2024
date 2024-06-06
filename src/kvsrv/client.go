@@ -77,7 +77,12 @@ func (ck *Clerk) PutAppend(key string, value string, op string) string {
 		Id: nrand(),
 	}
 	reply := PutAppendReply{}
-	deleteKeyReply := PutAppendReply{}
+
+	cleanupArgs := PutAppendArgs{
+		Key: key,
+		Id: args.Id,
+	}
+	cleanupReply := PutAppendReply{}
 
 	DPrintf("Client %v args: %v\n", op, args)
 	for {
@@ -92,7 +97,7 @@ func (ck *Clerk) PutAppend(key string, value string, op string) string {
 			DPrintf("Client %v succeeded: %v args: %v reply.Value: %v\n", op, succeeded, args, reply.Value)
 			if succeeded {
 				go func() {
-					ck.server.Call("KVServer.DeleteKey", &args, &deleteKeyReply)
+					ck.server.Call("KVServer.Cleanup", &cleanupArgs, &cleanupReply)
 				}()
 				return reply.Value
 			}

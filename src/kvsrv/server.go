@@ -40,7 +40,6 @@ func (kv *KVServer) Put(args *PutAppendArgs, reply *PutAppendReply) {
 	if _, ok := kv.processed[args.Id]; !ok {
 		kv.processed[args.Id] = true
 		kv.data[args.Key] = args.Value
-		reply.Value = args.Value
 	}
 }
 
@@ -70,13 +69,14 @@ func (kv *KVServer) Append(args *PutAppendArgs, reply *PutAppendReply) {
 		DPrintf("Server Append - 3 args: %v is_processed: %v existing value: %v\n", *args, kv.processed[args.Id], existingValue)
 	}
 	DPrintf("Server Append - 4 args: %v is_processed: %v existing value: %v\n", *args, kv.processed[args.Id], existingValue)
+	
 	reply.Value = existingValue
 }
 
-func (kv *KVServer) DeleteKey(args *PutAppendArgs, reply *PutAppendReply) {
+func (kv *KVServer) Cleanup(args *PutAppendArgs, reply *PutAppendReply) {
 	kv.mu.Lock()
 	defer kv.mu.Unlock()
-	DPrintf("Server DeleteKey args: %v deleting old data for id: %v\n", *args, args.Id)
+	DPrintf("Server Cleanup args: %v deleting old data for id: %v\n", *args, args.Id)
 	delete(kv.old_data[args.Id], args.Key)
 	delete(kv.old_data, args.Id)
 }
