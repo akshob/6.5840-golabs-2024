@@ -3,7 +3,6 @@ package kvsrv
 import (
 	"crypto/rand"
 	"math/big"
-	"time"
 
 	"6.5840/labrpc"
 )
@@ -11,7 +10,8 @@ import (
 
 type Clerk struct {
 	server *labrpc.ClientEnd
-	// You will have to modify this struct.
+	id    int64
+	seq   int
 }
 
 func nrand() int64 {
@@ -24,7 +24,8 @@ func nrand() int64 {
 func MakeClerk(server *labrpc.ClientEnd) *Clerk {
 	ck := new(Clerk)
 	ck.server = server
-	// You'll have to add code here.
+	ck.id = nrand()
+	ck.seq = 1
 	return ck
 }
 
@@ -44,22 +45,9 @@ func (ck *Clerk) Get(key string) string {
 	}
 	reply := GetReply{}
 
-	for {
-		ok := make(chan bool)
+	for !ck.server.Call("KVServer.Get", &args, &reply) {}
 
-		go func() {
-			ok <- ck.server.Call("KVServer.Get", &args, &reply)
-		}()
-
-		select {
-		case succeeded := <-ok:
-			if succeeded {
-				return reply.Value
-			}
-		case <-time.After(time.Second):
-			// retry the RPC call
-		}
-	}
+	return reply.Value
 }
 
 // shared by Put and Append.
@@ -71,40 +59,19 @@ func (ck *Clerk) Get(key string) string {
 // must match the declared types of the RPC handler function's
 // arguments. and reply must be passed as a pointer.
 func (ck *Clerk) PutAppend(key string, value string, op string) string {
+	ck.seq++
 	args := PutAppendArgs{
 		Key: key,
 		Value: value,
-		Id: nrand(),
+		ClientId: ck.id,
+		SeqNum: ck.seq,
 	}
 	reply := PutAppendReply{}
 
-	cleanupArgs := PutAppendArgs{
-		Key: key,
-		Id: args.Id,
-	}
-	cleanupReply := PutAppendReply{}
-
 	DPrintf("Client %v args: %v\n", op, args)
-	for {
-		ok := make(chan bool)
+	for !ck.server.Call("KVServer." + op, &args, &reply) {}
 
-		go func() {
-			ok <- ck.server.Call("KVServer." + op, &args, &reply)
-		}()
-
-		select {
-		case succeeded := <-ok:
-			DPrintf("Client %v succeeded: %v args: %v reply.Value: %v\n", op, succeeded, args, reply.Value)
-			if succeeded {
-				go func() {
-					ck.server.Call("KVServer.Cleanup", &cleanupArgs, &cleanupReply)
-				}()
-				return reply.Value
-			}
-		case <-time.After(time.Second):
-			// retry the RPC call
-		}
-	}
+	return reply.Value
 }
 
 func (ck *Clerk) Put(key string, value string) {

@@ -4,7 +4,8 @@ package kvsrv
 type PutAppendArgs struct {
 	Key   string
 	Value string
-	Id	int64
+	ClientId int64
+	SeqNum int
 }
 
 type PutAppendReply struct {
